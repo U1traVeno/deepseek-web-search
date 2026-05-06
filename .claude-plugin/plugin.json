@@ -1,0 +1,17 @@
+{
+  "name": "deepseek-web-search",
+  "version": "1.0.0",
+  "description": "Web search MCP server for DeepSeek API users. Fixes the 'deepseek-reasoner does not support tool_choice' error by providing a standalone web_search tool via DuckDuckGo.",
+  "author": {
+    "name": "tenltrist"
+  },
+  "repository": "https://github.com/tenltrist/deepseek-web-search",
+  "license": "MIT",
+  "keywords": [
+    "deepseek",
+    "web-search",
+    "duckduckgo",
+    "mcp",
+    "search"
+  ]
+}
