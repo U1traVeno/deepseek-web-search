@@ -1,6 +1,14 @@
 # DeepSeek Web Search MCP
 
-让 DeepSeek API 用户也能在 Claude Code 中使用 `web_search` 功能。
+让 DeepSeek API 用户也能在 Claude Code 中使用 `web_search` 和 `job_search`。
+
+## 包含的工具
+
+| 工具 | 说明 |
+|------|------|
+| `web_search` | 通用网页搜索（DuckDuckGo） |
+| `job_search` | 多源求职搜索（实习僧、牛客网、BOSS直聘、公司官网） |
+| `/job-hunt` skill | 求职搜索工作流，指导 Claude 高效搜岗 |
 
 ## 问题
 
