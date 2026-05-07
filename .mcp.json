@@ -4,11 +4,6 @@
       "type": "stdio",
       "command": "node",
       "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/mcp-server.js"]
-    },
-    "job-search": {
-      "type": "stdio",
-      "command": "python3",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/job-search-server.py"]
     }
   }
 }
