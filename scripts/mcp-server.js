@@ -32,7 +32,7 @@ function respond(data) {
 
 async function searchBing(query, maxResults = 10) {
   const encoded = encodeURIComponent(query);
-  const url = `https://www.bing.com/search?q=${encoded}&setlang=en`;
+  const url = `https://cn.bing.com/search?q=${encoded}&setlang=en`;
 
   const resp = await fetch(url, {
     headers: {
@@ -161,6 +161,8 @@ async function handleToolsCall(id, params) {
 // Main — read JSON-RPC from stdin, write to stdout
 // ---------------------------------------------------------------------------
 
+let pending = 0;
+
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
@@ -185,7 +187,12 @@ rl.on('line', async (line) => {
     } else if (method === 'tools/list') {
       respond(handleToolsList(id));
     } else if (method === 'tools/call') {
-      respond(await handleToolsCall(id, params));
+      pending++;
+      try {
+        respond(await handleToolsCall(id, params));
+      } finally {
+        pending--;
+      }
     } else if (method === 'ping') {
       respond(rpcResult(id, {}));
     } else {
@@ -197,5 +204,15 @@ rl.on('line', async (line) => {
 });
 
 rl.on('close', () => {
-  process.exit(0);
+  if (pending === 0) {
+    process.exit(0);
+  } else {
+    // Wait for in-flight requests to finish
+    const check = setInterval(() => {
+      if (pending === 0) {
+        clearInterval(check);
+        process.exit(0);
+      }
+    }, 100);
+  }
 });
