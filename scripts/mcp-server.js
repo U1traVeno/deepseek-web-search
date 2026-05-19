@@ -5,26 +5,21 @@
  * where the native WebSearch tool returns "400 deepseek-reasoner does not
  * support this tool_choice".
  *
- * Backend: DuckDuckGo HTML search (no API key required)
+ * Backend: Bing HTML search (works from China, no API key required)
  * Protocol: MCP JSON-RPC over stdio
  */
 
 import readline from 'node:readline';
-import { Buffer } from 'node:buffer';
 
 // ---------------------------------------------------------------------------
 // JSON-RPC helpers
 // ---------------------------------------------------------------------------
 
-let requestId = 1;
 function rpcResult(id, result) {
   return JSON.stringify({ jsonrpc: '2.0', id, result });
 }
 function rpcError(id, code, message) {
   return JSON.stringify({ jsonrpc: '2.0', id, error: { code, message } });
-}
-function rpcNotify() {
-  // no-op for now
 }
 
 function respond(data) {
@@ -32,46 +27,51 @@ function respond(data) {
 }
 
 // ---------------------------------------------------------------------------
-// DuckDuckGo HTML search
+// Bing HTML search
 // ---------------------------------------------------------------------------
 
-async function searchDuckDuckGo(query, maxResults = 10) {
-  const url = 'https://html.duckduckgo.com/html/';
-  const body = new URLSearchParams({ q: query });
+async function searchBing(query, maxResults = 10) {
+  const encoded = encodeURIComponent(query);
+  const url = `https://www.bing.com/search?q=${encoded}&setlang=en`;
 
   const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml',
+      'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
+    },
   });
 
-  if (!resp.ok) throw new Error(`DuckDuckGo returned ${resp.status}`);
+  if (!resp.ok) throw new Error(`Bing returned HTTP ${resp.status}`);
 
   const html = await resp.text();
   const results = [];
-  const linkRe = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
-  const snippetRe = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
 
-  const blocks = html
-    .split(/<div[^>]*class="[^"]*result__body[^"]*"[^>]*>/i)
-    .slice(1);
+  // Parse <li class="b_algo"> blocks
+  const blocks = html.split(/<li class="b_algo"[^>]*>/i).slice(1);
 
   for (const block of blocks) {
     if (results.length >= maxResults) break;
-    linkRe.lastIndex = 0;
-    snippetRe.lastIndex = 0;
-    const linkMatch = linkRe.exec(block);
-    const snippetMatch = snippetRe.exec(block);
-    if (linkMatch) {
-      results.push({
-        title: linkMatch[2].replace(/<\/?[^>]+>/g, '').trim(),
-        url: linkMatch[1].replace(/&amp;/g, '&'),
-        snippet: snippetMatch
-          ? snippetMatch[1].replace(/<\/?[^>]+>/g, '').trim()
-          : '',
-      });
-    }
+
+    // Extract URL and title from <h2><a href="URL">TITLE</a></h2>
+    const linkMatch = /<h2[^>]*><a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a><\/h2>/i.exec(block);
+    if (!linkMatch) continue;
+
+    const title = linkMatch[2].replace(/<[^>]*>/g, '').trim();
+    const url = linkMatch[1].replace(/&amp;/g, '&');
+
+    // Skip non-result links
+    if (!title) continue;
+
+    // Extract snippet from <div class="b_caption"><p>SNIPPET</p>
+    const snippetMatch = /<div class="b_caption">[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/i.exec(block);
+    const snippet = snippetMatch
+      ? snippetMatch[1].replace(/<[^>]*>/g, '').replace(/&ensp;/g, ' ').replace(/&#0?183;/g, '·').trim()
+      : '';
+
+    results.push({ title, url, snippet });
   }
+
   return results;
 }
 
@@ -83,7 +83,7 @@ const TOOLS = [
   {
     name: 'web_search',
     description:
-      'Search the web using DuckDuckGo. Returns title, URL, and snippet for each result. Use this to find current information, documentation, news, or any web content.',
+      'Search the web using Bing. Returns title, URL, and snippet for each result. Use this to find current information, documentation, news, or any web content.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -100,7 +100,7 @@ const TOOLS = [
 
 const SERVER_INFO = {
   name: 'web-search',
-  version: '1.0.0',
+  version: '2.0.0',
 };
 
 // ---------------------------------------------------------------------------
@@ -134,7 +134,7 @@ async function handleToolsCall(id, params) {
   const maxResults = Math.min(Number(args?.max_results) || 10, 20);
 
   try {
-    const results = await searchDuckDuckGo(query, maxResults);
+    const results = await searchBing(query, maxResults);
 
     if (results.length === 0) {
       return rpcResult(id, {
@@ -142,7 +142,6 @@ async function handleToolsCall(id, params) {
       });
     }
 
-    // Format using the Anthropic-style content block pattern
     const text = results
       .map(
         (r, i) =>
