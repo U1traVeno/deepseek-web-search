@@ -14,7 +14,9 @@ API Error: 400 deepseek-reasoner does not support this tool_choice
 
 ## 解决方案
 
-这个插件通过 DuckDuckGo（免费，无需 API key）提供独立的 `web_search` MCP 工具，完全绕过 DeepSeek 的限制。
+这个插件通过 **Bing**（免费，无需 API key）提供独立的 `web_search` MCP 工具，完全绕过 DeepSeek 的限制。
+
+> **为什么不用 DuckDuckGo？** DuckDuckGo 对服务器 IP 返回 CAPTCHA，导致无法正常搜索。Bing 的 HTML 搜索结果无需验证，在国内可直接访问。
 
 ## 安装
 
@@ -52,11 +54,11 @@ git clone https://github.com/tenltrist/deepseek-web-search.git ~/deepseek-web-se
 ## 工作原理
 
 ```
-Claude Code → MCP Protocol (stdio) → mcp-server.js → DuckDuckGo HTML → 搜索结果
+Claude Code → MCP Protocol (stdio) → mcp-server.js → Bing HTML → 搜索结果
 ```
 
 - 纯 Node.js 实现，**零外部依赖**（只用 Node.js 内置的 `readline` 和 `fetch`）
-- 通过 DuckDuckGo HTML 搜索（非 JS 版本，轻量快速）
+- 通过 Bing HTML 搜索（返回干净 HTML，无需 JavaScript）
 - 支持中英文搜索
 
 ## 要求
@@ -71,6 +73,7 @@ Claude Code → MCP Protocol (stdio) → mcp-server.js → DuckDuckGo HTML → �
 | 中文搜索 | ✅ | ✅ |
 | 需要 API Key | ❌ | ❌ |
 | DeepSeek 兼容 | ❌ | ✅ |
+| 国内可用 | ✅ | ✅ |
 
 ## License
 
